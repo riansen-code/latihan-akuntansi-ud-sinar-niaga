@@ -28,11 +28,12 @@ table.sales-journal{min-width:1100px}table.sales-journal th{white-space:nowrap;t
 <section class="welcome"><div><span class="pill">MODUL PRAKTIK · KELAS AKUNTANSI</span><h2>Halo, <span id="helloName">Siswa</span>! 👋</h2><p>Kerjakan setiap lembar berdasarkan 15 transaksi. Isi jawabanmu dengan teliti, lalu kumpulkan untuk melihat hasil latihan.</p></div><div class="student-chip"><small>IDENTITAS SISWA</small><strong id="studentIdentity">Nama · Kelas</strong><div style="font-size:11px;color:#c9ded7;margin-top:5px">Metode persediaan: FIFO</div></div></section>
 <div class="stats"><div class="stat"><span>Jumlah transaksi</span><strong>15</strong></div><div class="stat"><span>Lembar kerja</span><strong>10</strong></div><div class="stat"><span>Metode persediaan</span><strong>FIFO</strong></div></div>
 <div class="layout">
-<aside class="side"><div class="side-title">MENU LEMBAR KERJA</div><div id="navList" class="nav-list"></div><div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px"><button class="btn primary" style="width:100%" onclick="submitAll()">✓ Kumpulkan semua</button><button class="btn" style="width:100%;margin-top:8px" onclick="downloadResult()">⬇ Unduh hasil</button><p class="hint" style="padding:0 5px">Pastikan semua lembar diperiksa sebelum mengumpulkan, lalu unduh hasil dan kirim ke guru.</p></div></aside>
+<aside class="side"><div class="side-title">MENU LEMBAR KERJA</div><div id="navList" class="nav-list"></div><div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px"><button class="btn primary" style="width:100%" onclick="submitAll()">✓ Kumpulkan semua</button><button class="btn gold" style="width:100%;margin-top:8px" onclick="downloadPDF()">⬇ Unduh hasil PDF</button><button class="btn" style="width:100%;margin-top:8px" onclick="downloadTXT()">Unduh TXT (cadangan)</button><p class="hint" style="padding:0 5px">Pastikan semua lembar diperiksa sebelum mengumpulkan, lalu unduh hasil dan kirim ke guru.</p></div></aside>
 <section class="panel"><div id="sheetHeader" class="content-head"></div><div id="sheetBody" class="panel-body"></div></section>
 </div>
 <div class="footer">Latihan Akuntansi Digital · UD Sinar Niaga · Terhubung ke Apps Script</div>
 </main></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 const transactions=[
 ["2 Jan","Pembelian","Membeli 100 buku tulis dari PT Pustaka Jaya secara kredit, Rp10.000/unit + PPN."],
@@ -139,7 +140,83 @@ function renderAP(){return subLedger("ap","Buku pembantu utang: pembelian kredit
 function renderInventory(){const list=[["Buku Tulis","B001"],["Pena","P001"]];return `<div class="notice"><b>FIFO · Perpetual.</b> Buat kartu terpisah untuk Buku Tulis dan Pena. Isi Unit, Price, dan Total pada kolom IN (pembelian), OUT (HPP penjualan), dan Balance (saldo). Barang dari lapisan persediaan paling awal dikeluarkan lebih dahulu; bila saldo punya lebih dari satu harga, tulis tiap lapisan pada baris tersendiri. Pada HP, geser tabel ke samping.</div><div class="section-title">Inventory Card — UD Sinar Niaga, Januari 2026 (dalam Rupiah)</div>${list.map((e,i)=>{const kk="inv"+i;const L=(r,c,ph,t="text")=>inp(rowKey(kk,r,c),ph,t);const g=(j,g,cls)=>["unit","price","total"].map(c=>`<td class="${cls}">${L(j,g+"_"+c,"0","number")}</td>`).join("");const rows=Array.from({length:12},(_,j)=>`<tr><td><input data-key="${rowKey(kk,j,"tanggal")}" type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="dd/mm/yyyy" value="${esc(v(rowKey(kk,j,"tanggal")))}" oninput="maskDate(this)"></td><td>${EV(rowKey(kk,j,"bukti"))}</td><td>${L(j,"deskripsi","Description")}</td>${g(j,"in","c-d")}${g(j,"out","c-k")}${g(j,"bal","c-b")}</tr>`).join("");const sub=(cls)=>`<th class="${cls}">Unit</th><th class="${cls}">Price</th><th class="${cls}">Total</th>`;return `<div class="sl-head"><span><b>Name :</b> ${e[0]}</span><span><b>Kode :</b> ${e[1]}</span><span><b>Metode :</b> FIFO</span></div><div class="table-wrap">${tb("sales-journal ic",["date","doc","desc","num","num","num","num","num","num","num","num","num"])}<thead><tr><th rowspan="2">Date</th><th rowspan="2">Evidence No</th><th rowspan="2">Description</th><th class="c-d" colspan="3">IN</th><th class="c-k" colspan="3">OUT</th><th class="c-b" colspan="3">Balance</th></tr><tr>${sub("c-d")}${sub("c-k")}${sub("c-b")}</tr></thead><tbody>${rows}</tbody></table></div>`}).join("")}${controls()}`}
 function controls(){return `<div class="bottom-actions"><button class="btn" onclick="go(Math.max(0,current-1))">← Sebelumnya</button><button class="btn gold" onclick="submitStep()">✔ Kirim &amp; periksa</button><button class="btn primary" onclick="save();alert('Jawaban tersimpan di browser perangkat ini.');">Simpan jawaban</button><button class="btn" onclick="go(Math.min(10,current+1))">Berikutnya →</button></div><p class="hint">Jawaban disimpan secara lokal pada browser ini. Jika memakai mode samaran atau menghapus data browser, jawaban dapat hilang.</p>`}
 function addRow(){alert("Struktur demo menggunakan jumlah baris awal agar mudah dilihat di HP. Pengembangan berikutnya dapat menambahkan baris dinamis sesuai kebutuhan transaksi.")}
-function downloadResult(){save();const st=Math.min(curStep(),16);let tr=0;const rows=transactions.map((t,i)=>{const n=+answers["__t"+i]||0;tr+=n;const done=i<st;return (i+1)+". "+t[0]+" | "+t[1]+" | "+(done?"Benar":"Belum selesai")+" | percobaan: "+n}).join("\n");const fin=+answers["__t15"]||0;tr+=fin;const lines=["HASIL LATIHAN AKUNTANSI - UD SINAR NIAGA","Nama   : "+student.name,"Kelas  : "+student.cls,"Waktu  : "+new Date().toLocaleString("id-ID"),"Status : "+(submitted?"Sudah dikumpulkan":"Belum dikumpulkan"),"Tahap selesai: "+st+" dari 16","Total pengiriman jawaban: "+tr,"","RINCIAN PER SOAL (tanggal | jenis | status | jumlah percobaan)",rows,"16. Total, nomor akun, rekap | "+(st>=16?"Benar":"Belum selesai")+" | percobaan: "+fin,"","DATA JAWABAN (jangan diubah)",JSON.stringify({student:student,answers:answers})];const blob=new Blob([lines.join("\n")],{type:"text/plain;charset=utf-8"});const a=document.createElement("a");const nm=(student.name+"_"+student.cls).replace(/[^A-Za-z0-9]+/g,"_");a.href=URL.createObjectURL(blob);a.download="hasil_"+nm+".txt";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+function downloadTXT(){save();const st=Math.min(curStep(),16);let tr=0;const rows=transactions.map((t,i)=>{const n=+answers["__t"+i]||0;tr+=n;const done=i<st;return (i+1)+". "+t[0]+" | "+t[1]+" | "+(done?"Benar":"Belum selesai")+" | percobaan: "+n}).join("\n");const fin=+answers["__t15"]||0;tr+=fin;const lines=["HASIL LATIHAN AKUNTANSI - UD SINAR NIAGA","Nama   : "+student.name,"Kelas  : "+student.cls,"Waktu  : "+new Date().toLocaleString("id-ID"),"Status : "+(submitted?"Sudah dikumpulkan":"Belum dikumpulkan"),"Tahap selesai: "+st+" dari 16","Total pengiriman jawaban: "+tr,"","RINCIAN PER SOAL (tanggal | jenis | status | jumlah percobaan)",rows,"16. Total, nomor akun, rekap | "+(st>=16?"Benar":"Belum selesai")+" | percobaan: "+fin,"","DATA JAWABAN (jangan diubah)",JSON.stringify({student:student,answers:answers})];const blob=new Blob([lines.join("\n")],{type:"text/plain;charset=utf-8"});const a=document.createElement("a");const nm=(student.name+"_"+student.cls).replace(/[^A-Za-z0-9]+/g,"_");a.href=URL.createObjectURL(blob);a.download="hasil_"+nm+".txt";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+async function downloadPDF(){
+  save();
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    alert("Pustaka PDF belum berhasil dimuat. Periksa koneksi internet, lalu coba lagi. File TXT tetap tersedia sebagai cadangan.");
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:"portrait", unit:"mm", format:"a4"});
+  const now = new Date();
+  const dateText = now.toLocaleString("id-ID", {dateStyle:"long", timeStyle:"short"});
+  const startText = (typeof startedAt !== "undefined" && startedAt) ? new Date(startedAt).toLocaleString("id-ID", {dateStyle:"long", timeStyle:"short"}) : "Tidak tercatat";
+  const st = Math.min(curStep(),16);
+  const totalAttempts = Object.keys(answers).filter(k=>k.startsWith("__t")).reduce((a,k)=>a+(+answers[k]||0),0);
+  const statusText = submitted ? "Sudah dikumpulkan" : "Belum dikumpulkan";
+  const pageW = doc.internal.pageSize.getWidth();
+  const margin = 18;
+  const right = pageW-margin;
+  const nm = (String(student.name||"siswa")+"_"+String(student.cls||"")).replace(/[^A-Za-z0-9_-]+/g,"_");
+
+  // Header laporan akuntansi
+  doc.setFillColor(18,60,53);
+  doc.rect(0,0,pageW,34,"F");
+  doc.setTextColor(255,255,255);
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(16);
+  doc.text("LAPORAN HASIL LATIHAN AKUNTANSI", margin, 14);
+  doc.setFontSize(11);
+  doc.setFont("helvetica","normal");
+  doc.text("UD SINAR NIAGA", margin, 22);
+  doc.setFontSize(8.5);
+  doc.text("LATIHAN AKUNTANSI DIGITAL", margin, 28);
+
+  let y=44;
+  const section=(title)=>{
+    doc.setFillColor(232,244,239); doc.setDrawColor(205,222,214);
+    doc.roundedRect(margin,y,pageW-margin*2,8,1.5,1.5,"FD");
+    doc.setTextColor(18,60,53); doc.setFont("helvetica","bold"); doc.setFontSize(10);
+    doc.text(title,margin+3,y+5.4); y+=12;
+  };
+  const tableRow=(label,value,alt=false)=>{
+    const h=8;
+    doc.setFillColor(alt?248:255,alt?250:255,alt?249:255);
+    doc.setDrawColor(220,229,224); doc.rect(margin,y,pageW-margin*2,h,"FD");
+    doc.line(margin+53,y,margin+53,y+h);
+    doc.setTextColor(75,91,84); doc.setFont("helvetica","normal"); doc.setFontSize(9);
+    doc.text(String(label),margin+3,y+5.2);
+    doc.setTextColor(23,37,34); doc.setFont("helvetica","bold");
+    const valueLines=doc.splitTextToSize(String(value??"-"),pageW-margin*2-59);
+    doc.text(valueLines.slice(0,2),margin+56,y+5.2);
+    y+=h;
+  };
+
+  section("A. IDENTITAS SISWA");
+  tableRow("Nama siswa",student.name||"-",false);
+  tableRow("Kelas",student.cls||"-",true);
+  tableRow("Waktu mulai",startText,false);
+  tableRow("Waktu selesai/laporan",dateText,true);
+  y+=5;
+  section("B. RINGKASAN PENGERJAAN");
+  tableRow("Status pengumpulan",statusText,false);
+  tableRow("Tahap selesai",st+" dari 16 tahap",true);
+  tableRow("Tahap belum selesai",Math.max(0,16-st)+" tahap",false);
+  tableRow("Total pengiriman/percobaan tercatat",String(totalAttempts),true);
+  tableRow("Waktu laporan dibuat",dateText,false);
+  y+=7;
+  doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(90,105,98);
+  const note="Catatan: ringkasan ini dibuat dari data yang tersimpan pada browser perangkat siswa. Pastikan hasil pengumpulan telah masuk ke Google Sheets jika pengiriman online digunakan.";
+  const noteLines=doc.splitTextToSize(note,pageW-margin*2);
+  doc.text(noteLines,margin,y);
+  y += noteLines.length*4.5+8;
+  doc.setDrawColor(220,229,224); doc.line(margin,y,right,y); y+=7;
+  doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(110,120,115);
+  doc.text("Dokumen hasil latihan — UD Sinar Niaga",pageW/2,y,{align:"center"});
+  doc.save("laporan_latihan_"+nm+".pdf");
+}
+
 async function submitAll(){
   save();
   let tr=Object.keys(answers).filter(k=>k.startsWith("__t")).reduce((a,k)=>a+(+answers[k]||0),0);
@@ -165,7 +242,7 @@ async function submitAll(){
   }
   renderSheet();
 }
-function showScore(){let el=document.getElementById("score-result");if(!el){el=document.createElement("div");el.id="score-result";el.className="scorebox";document.getElementById("sheetBody").appendChild(el)}let tr=Object.keys(answers).filter(k=>k.startsWith("__t")).reduce((a,k)=>a+(+answers[k]||0),0);el.innerHTML=`<h3>Ringkasan pengumpulan</h3><p>Identitas: <b>${esc(student.name)}</b> · ${esc(student.cls)}<br>Tahap selesai: <b>${Math.min(curStep(),16)} dari 16</b><br>Total pengiriman jawaban: <b>${tr}</b></p><button class="btn gold" onclick="downloadResult()">⬇ Unduh hasil</button><p class="hint">Pengumpulan dikirim ke Apps Script. Periksa tab “Hasil Ujian” untuk memastikan data masuk. Kamu juga bisa mengunduh hasil sebagai cadangan.</p>`}
+function showScore(){let el=document.getElementById("score-result");if(!el){el=document.createElement("div");el.id="score-result";el.className="scorebox";document.getElementById("sheetBody").appendChild(el)}let tr=Object.keys(answers).filter(k=>k.startsWith("__t")).reduce((a,k)=>a+(+answers[k]||0),0);el.innerHTML=`<h3>Ringkasan pengumpulan</h3><p>Identitas: <b>${esc(student.name)}</b> · ${esc(student.cls)}<br>Tahap selesai: <b>${Math.min(curStep(),16)} dari 16</b><br>Total pengiriman jawaban: <b>${tr}</b></p><button class="btn gold" onclick="downloadPDF()">⬇ Unduh hasil PDF</button> <button class="btn" onclick="downloadTXT()">Unduh TXT (cadangan)</button><p class="hint">PDF berisi identitas dan ringkasan hasil. TXT tetap tersedia sebagai cadangan. Periksa tab “Hasil Latihan” untuk memastikan data masuk.</p>`}
 </script>
 </body>
 </html>
