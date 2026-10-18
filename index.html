@@ -28,7 +28,7 @@ table.sales-journal{min-width:1100px}table.sales-journal th{white-space:nowrap;t
 <section class="welcome"><div><span class="pill">MODUL PRAKTIK · KELAS AKUNTANSI</span><h2>Halo, <span id="helloName">Siswa</span>! 👋</h2><p>Kerjakan setiap lembar berdasarkan 15 transaksi. Isi jawabanmu dengan teliti, lalu kumpulkan untuk melihat hasil latihan.</p></div><div class="student-chip"><small>IDENTITAS SISWA</small><strong id="studentIdentity">Nama · Kelas</strong><div style="font-size:11px;color:#c9ded7;margin-top:5px">Metode persediaan: FIFO</div></div></section>
 <div class="stats"><div class="stat"><span>Jumlah transaksi</span><strong>15</strong></div><div class="stat"><span>Lembar kerja</span><strong>10</strong></div><div class="stat"><span>Metode persediaan</span><strong>FIFO</strong></div></div>
 <div class="layout">
-<aside class="side"><div class="side-title">MENU LEMBAR KERJA</div><div id="navList" class="nav-list"></div><div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px"><button class="btn primary" style="width:100%" onclick="submitAll()">✓ Kumpulkan semua</button><button class="btn gold" style="width:100%;margin-top:8px" onclick="downloadPDF()">⬇ Unduh hasil PDF</button><button class="btn" style="width:100%;margin-top:8px" onclick="downloadTXT()">Unduh TXT (cadangan)</button><p class="hint" style="padding:0 5px">Pastikan semua lembar diperiksa sebelum mengumpulkan, lalu unduh hasil dan kirim ke guru.</p></div></aside>
+<aside class="side"><div class="side-title">MENU LEMBAR KERJA</div><div id="navList" class="nav-list"></div><div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px"><button id="btnSubmit" class="btn primary hidden" style="width:100%" onclick="submitAll()">✓ Kumpulkan semua</button><button class="btn gold dl hidden" style="width:100%;margin-top:8px" onclick="downloadPDF()">⬇ Unduh hasil PDF</button><button class="btn dl hidden" style="width:100%;margin-top:8px" onclick="downloadTXT()">Unduh TXT (cadangan)</button><p id="subHint" class="hint" style="padding:0 5px"></p></div></aside>
 <section class="panel"><div id="sheetHeader" class="content-head"></div><div id="sheetBody" class="panel-body"></div></section>
 </div>
 <div class="footer">Latihan Akuntansi Digital · UD Sinar Niaga · Terhubung ke Apps Script</div>
@@ -71,9 +71,9 @@ const COA=[["1101", "Cash in Bank", 45000000, 0], ["1102", "Petty Cash", 1000000
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcuS48lhRDaNqYrY56w3KlumPvsIn4OXJDL7Vtgz0Sp98V-Zd0pGvT9HhUwrczCfVKyw/exec';
 let current=0,student={name:"",cls:""},answers={},submitted=false,startedAt="";
 function login(){let n=document.getElementById("studentName").value.trim(),c=document.getElementById("studentClass").value;if(!n||!c){alert("Isi nama lengkap dan pilih kelas terlebih dahulu.");return}student={name:n,cls:c};startedAt=new Date().toISOString();document.getElementById("loginScreen").classList.add("hidden");document.getElementById("app").classList.remove("hidden");document.getElementById("helloName").textContent=n.split(" ")[0];document.getElementById("studentIdentity").textContent=n+" · "+c;try{let old=localStorage.getItem("sinarNiaga_"+n+"_"+c);if(old)answers=JSON.parse(old)}catch(e){}stepMsg="";renderNav();renderSheet()}
-function save(){try{localStorage.setItem("sinarNiaga_"+student.name+"_"+student.cls,JSON.stringify(answers))}catch(e){}}
+function save(){try{localStorage.setItem("sinarNiaga_"+student.name+"_"+student.cls,JSON.stringify(answers))}catch(e){};updateGate()}
 function navHTML(){return sheets.map((s,i)=>`<button class="nav ${i===current?'active':''}" onclick="go(${i})"><span class="n">${i}</span><span class="label">${s[0]}</span></button>`).join("")}
-function renderNav(){document.getElementById("navList").innerHTML=navHTML()}
+function renderNav(){document.getElementById("navList").innerHTML=navHTML();updateGate()}
 function go(i){current=i;renderNav();renderSheet();window.scrollTo({top:0,behavior:"smooth"})}
 function header(){let s=sheets[current];document.getElementById("sheetHeader").innerHTML=`<div><h2>${s[2]} ${s[0]}</h2><p>${s[1]}</p></div><span class="sheet-badge">${current===11?"KUNCI":"LEMBAR "+current+" / 10"}</span>`}
 function renderSheet(){header();let body=document.getElementById("sheetBody");{let _h=[()=>renderTB(),()=>renderQuestions(),()=>renderPurchase(),()=>renderSales(),()=>renderReceipt(),()=>renderPayment(),()=>renderGeneral(),()=>renderPetty(),()=>renderAR(),()=>renderAP(),()=>renderInventory(),()=>renderKey()][current]();if(current>=2&&current<=10)_h=`<div id="stepBox" class="step-box compact">${stepBoxHTML(false)}</div>`+_h;body.innerHTML=_h}body.querySelectorAll("input,select,textarea").forEach(el=>{el.addEventListener("input",e=>{let k=e.target.dataset.key;if(k){answers[k]=e.target.value;save()}});el.addEventListener("change",e=>{let k=e.target.dataset.key;if(k){answers[k]=e.target.value;save()}})});body.querySelectorAll("[data-action]").forEach(b=>b.addEventListener("click",()=>addRow(b.dataset.action)));if(submitted)showScore()}
@@ -219,6 +219,7 @@ async function downloadPDF(){
 }
 
 async function submitAll(){
+  if(curStep()<16){alert("Selesaikan semua soal sampai tahap akhir terlebih dahulu sebelum mengumpulkan.");return}
   save();
   let tr=Object.keys(answers).filter(k=>k.startsWith("__t")).reduce((a,k)=>a+(+answers[k]||0),0);
   const finishedAt=new Date().toISOString();
@@ -244,6 +245,10 @@ async function submitAll(){
   renderSheet();
 }
 function showScore(){let el=document.getElementById("score-result");if(!el){el=document.createElement("div");el.id="score-result";el.className="scorebox";document.getElementById("sheetBody").appendChild(el)}let tr=Object.keys(answers).filter(k=>k.startsWith("__t")).reduce((a,k)=>a+(+answers[k]||0),0);el.innerHTML=`<h3>Ringkasan pengumpulan</h3><p>Identitas: <b>${esc(student.name)}</b> · ${esc(student.cls)}<br>Tahap selesai: <b>${Math.min(curStep(),16)} dari 16</b><br>Total pengiriman jawaban: <b>${tr}</b></p><button class="btn gold" onclick="downloadPDF()">⬇ Unduh hasil PDF</button> <button class="btn" onclick="downloadTXT()">Unduh TXT (cadangan)</button><p class="hint">PDF berisi identitas dan ringkasan hasil. TXT tetap tersedia sebagai cadangan. Periksa tab “Hasil Latihan” untuk memastikan data masuk.</p>`}
+
+function updateGate(){if(!student||!student.name)return;const st=Math.min(curStep(),16),ok=st>=16;
+document.querySelectorAll("#btnSubmit,.dl").forEach(e=>e.classList.toggle("hidden",!ok));
+const h=document.getElementById("subHint");if(h)h.textContent=ok?"Semua soal sudah benar. Tekan Kumpulkan semua untuk menyelesaikan.":"Tahap selesai: "+st+" dari 16. Tombol Kumpulkan dan Unduh hasil muncul setelah semua soal selesai."}
 </script>
 </body>
 </html>
